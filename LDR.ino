@@ -10,6 +10,7 @@
 #define LED3_PIN 23
 #define LDR_TEST 3
 #define AMOSTRAS_MED 200
+#define STARTUP_REF 300
 
 typedef struct
 {
@@ -26,35 +27,49 @@ const float  LDR_POLY_COEFF[][8] =
 };
 const uint8_t LDR_INPUT[] = {LDR0_PIN, LDR1_PIN, LDR2_PIN, LDR3_PIN};
 const uint8_t LED_CONTROL[] = {LED0_PIN, LED1_PIN, LED2_PIN, LED3_PIN};
+
+double LUX_REFERENCE[4];
+double LDR_FILTERED[4];
+double PWM_OUTPUT[4];
+
+double Kp=0.075 , Ki =0.30 , Kd=0;
+PID* PID_SYS[4];
+
 circular_array LDR_array[4];
 
 float ADCtoLx(uint16_t ADC, uint8_t LDR);
 void initializeLDR();
-void sampleData();
-float readLDR(uint8_t LDR);
+void sampleLDR();
 
 void setup() 
 {
   Serial.begin(115200);
   for(uint8_t i = 0; i < 4; i++) 
   {
+    PWM_OUTPUT[i] = 0;
+    LUX_REFERENCE[i] = STARTUP_REF;
+    PID_SYS[i] = new PID(&LDR_FILTERED[i], &PWM_OUTPUT[i], &LUX_REFERENCE[i], Kp, Ki, Kd, DIRECT);
+    PID_SYS[i]->SetMode(AUTOMATIC);
+    
     pinMode(LDR_INPUT[i], OUTPUT);
     ledcSetup(i, 10000, 10);
     ledcAttachPin(LED_CONTROL[i], i);
-    ledcWrite(i, 1023);
+    ledcWrite(i, PWM_OUTPUT[i]);
   }
   initializeLDR();
-  for(int i = 0; i < AMOSTRAS_MED; i++)
-  {
-    Serial.println(LDR_array[0].values[i]);
-  }
 }
 
 void loop() 
 {
-  sampleData();
-  Serial.println(String(readLDR(0)) + "\t" + String(readLDR(1)) + "\t" + String(readLDR(2)) + "\t" + String(readLDR(3)));
+  sampleLDR();
+  for(uint8_t i = 0; i<4; i++) 
+  {
+    PID_SYS[i]->Compute();
+    uint16_t out = map(PWM_OUTPUT[i], 0, 255, 0, 1023);
+    ledcWrite(i, out);
+  }
   delayMicroseconds(50);
+  Serial.printf("%f - %f - %f - %f\n", LDR_FILTERED[0], LDR_FILTERED[1], LDR_FILTERED[2], LDR_FILTERED[3]);
 }
 
 float ADCtoLx(uint16_t ADC, uint8_t LDR)
@@ -78,12 +93,12 @@ void initializeLDR()
   for(uint8_t l=0; l<4; l++) LDR_array[l].ptr = 0;
   for(uint8_t l=0; l<AMOSTRAS_MED; l++)
   {
-    sampleData();
+    sampleLDR();
     delayMicroseconds(50);
   }
 }
 
-void sampleData()
+void sampleLDR()
 {
   float Lx[4];
   for(uint8_t i=0; i<4; i++) 
@@ -92,12 +107,8 @@ void sampleData()
     ADC[i] = analogRead(LDR_INPUT[i]);
     Lx[i] = ADCtoLx(ADC[i], i);
     insert(Lx[i], &LDR_array[i]);
+    float sum = 0;
+    for(uint8_t l=0; l<AMOSTRAS_MED; l++) sum += LDR_array[i].values[l];
+    LDR_FILTERED[i] = sum/AMOSTRAS_MED;
   }
-}
-
-float readLDR(uint8_t LDR)
-{
-  float sum = 0;
-  for(uint8_t l=0; l<AMOSTRAS_MED; l++) sum += LDR_array[LDR].values[l];
-  return sum/AMOSTRAS_MED;
 }
