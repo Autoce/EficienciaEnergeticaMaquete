@@ -8,7 +8,6 @@
 #define LED1_PIN 21
 #define LED2_PIN 22
 #define LED3_PIN 23
-#define LDR_TEST 3
 #define AMOSTRAS_MED 200
 #define STARTUP_REF 300
 
@@ -18,7 +17,7 @@ typedef struct
   float values[AMOSTRAS_MED];
 } circular_array;
 
-const float  LDR_POLY_COEFF[][8] =
+const float LDR_POLY_COEFF[][8] =
 {
   {3.68084919177402, -34.5120701709678, 131.080431022415,  -249.864706948331, 255.443445134104, -124.166605221456, 43.7549060222041, -1.19323952996493},
   {1.93957819560206, -15.4571559304617,  56.8361457426944, -115.665743300122, 150.58478018297,  -88.0892324785287, 74.0271437691636, -0.44040656912988},
@@ -32,7 +31,7 @@ double LUX_REFERENCE[4];
 double LDR_FILTERED[4];
 double PWM_OUTPUT[4];
 
-double Kp=0.075 , Ki =0.30 , Kd=0;
+const double Kp = 0.075, Ki = 1, Kd = 0;
 PID* PID_SYS[4];
 
 circular_array LDR_array[4];
@@ -49,8 +48,8 @@ void setup()
     PWM_OUTPUT[i] = 0;
     LUX_REFERENCE[i] = STARTUP_REF;
     PID_SYS[i] = new PID(&LDR_FILTERED[i], &PWM_OUTPUT[i], &LUX_REFERENCE[i], Kp, Ki, Kd, DIRECT);
+    PID_SYS[i]->SetOutputLimits(0, 1023);
     PID_SYS[i]->SetMode(AUTOMATIC);
-    
     pinMode(LDR_INPUT[i], OUTPUT);
     ledcSetup(i, 10000, 10);
     ledcAttachPin(LED_CONTROL[i], i);
@@ -65,8 +64,7 @@ void loop()
   for(uint8_t i = 0; i<4; i++) 
   {
     PID_SYS[i]->Compute();
-    uint16_t out = map(PWM_OUTPUT[i], 0, 255, 0, 1023);
-    ledcWrite(i, out);
+    ledcWrite(i, PWM_OUTPUT[i]);
   }
   delayMicroseconds(50);
   Serial.printf("%f - %f - %f - %f\n", LDR_FILTERED[0], LDR_FILTERED[1], LDR_FILTERED[2], LDR_FILTERED[3]);
