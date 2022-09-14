@@ -1,5 +1,4 @@
-#include <PID_v1.h>
-
+#include "PID.hpp"
 #define LDR0_PIN 33
 #define LDR1_PIN 32
 #define LDR2_PIN 35
@@ -10,8 +9,8 @@
 #define LED1_PIN 21
 #define LED2_PIN 22
 #define LED3_PIN 23
-#define AMOSTRAS_MED 200
-#define STARTUP_REF 300
+#define AMOSTRAS_MED 100
+#define STARTUP_REF 600
 
 typedef struct
 {
@@ -33,7 +32,7 @@ double LUX_REFERENCE[4];
 double LDR_FILTERED[4];
 double PWM_OUTPUT[4];
 
-const double Kp = 0.075, Ki = 1, Kd = 0;
+const double Kp = 1, Ki = 5, Kd = 0;
 PID* PID_SYS[4];
 
 circular_array LDR_array[4];
@@ -49,9 +48,7 @@ void setup()
   {
     PWM_OUTPUT[i] = 0;
     LUX_REFERENCE[i] = STARTUP_REF;
-    PID_SYS[i] = new PID(&LDR_FILTERED[i], &PWM_OUTPUT[i], &LUX_REFERENCE[i], Kp, Ki, Kd, DIRECT);
-    PID_SYS[i]->SetOutputLimits(0, 1023);
-    PID_SYS[i]->SetMode(AUTOMATIC);
+    PID_SYS[i] = new PID(&LDR_FILTERED[i], &PWM_OUTPUT[i], &LUX_REFERENCE[i], Kp, Ki, Kd, 2, 0.001);
     pinMode(LDR_INPUT[i], OUTPUT);
     ledcSetup(i, 10000, 10);
     ledcAttachPin(LED_CONTROL[i], i);
@@ -68,8 +65,13 @@ void loop()
     PID_SYS[i]->Compute();
     ledcWrite(i, PWM_OUTPUT[i]);
   }
-  delayMicroseconds(50);
+  delay(1);
   Serial.printf("%f - %f - %f - %f\n", LDR_FILTERED[0], LDR_FILTERED[1], LDR_FILTERED[2], LDR_FILTERED[3]);
+  if(Serial.available() > 0)
+  {
+    double LUX_REF = Serial.parseFloat();
+    for(int i = 0; i<4; i++) LUX_REFERENCE[i] = LUX_REF;
+  }
 }
 
 float ADCtoLx(uint16_t ADC, uint8_t LDR)
@@ -94,7 +96,7 @@ void initializeLDR()
   for(uint8_t l=0; l<AMOSTRAS_MED; l++)
   {
     sampleLDR();
-    delayMicroseconds(50);
+    delay(1);
   }
 }
 
