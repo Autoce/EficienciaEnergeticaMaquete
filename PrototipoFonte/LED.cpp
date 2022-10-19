@@ -7,12 +7,14 @@ LED::LED(uint8_t outputPin, uint8_t channel) : channel(channel), outputPin(outpu
   ledcAttachPin(outputPin, channel);
   ledcWrite(channel, 0);
 }
+
 void LED::analogWrite(uint16_t duty_cycle)
 {
   ledcWrite(channel, duty_cycle);
   this->duty_cycle = duty_cycle;
 }
-uint16_t LED::getDutyCycle()
+
+double LED::getDutyCycle() const
 {
   return duty_cycle/10.23;
 }

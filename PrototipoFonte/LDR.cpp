@@ -1,6 +1,6 @@
 #include "LDR.hpp"
+#include "config.h"
 #include <Arduino.h>
-#define AMOSTRAS_MED 100
 
 LDR::LDR(uint8_t inputPin, const double* polynomial) : inputPin(inputPin), polynomial(polynomial)
 {
@@ -26,14 +26,14 @@ void LDR::update()
   currentLuxAvg = sum/AMOSTRAS_MED;
 }
 
-double LDR::getLuminance()
+double LDR::getLuminance() const
 {
   return currentLuxAvg;
 }
 
-double LDR::getLuminanceFromHardware()
+double LDR::getLuminanceFromHardware() const
 {
-  uint16_t ADC = analogRead(inputPin);
+  const uint16_t ADC = analogRead(inputPin);
   auto ADCtoLx = [](uint16_t ADC, const double* polynomial)
   {
     double Lx = 0;

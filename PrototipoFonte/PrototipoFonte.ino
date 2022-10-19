@@ -1,28 +1,14 @@
-#include "LED.hpp"
-#include "LDR.hpp"
-#include "PID.hpp"
-
+#include "Area.hpp"
+#include "config.h"
 #include <WiFi.h>
 #include <WiFiClient.h>
 
 #define BLYNK_TEMPLATE_ID "TMPLfD1ibBnK"
 #define BLYNK_DEVICE_NAME "LDRSENSORS"
 #define BLYNK_AUTH_TOKEN "ItbW7xImWPzsB9nzaV7wjWH42NVoI6Yy"
-//#define BLYNK_PRINT Serial
+#define BLYNK_PRINT Serial
 #include <BlynkSimpleEsp32.h>
 
-#define LDR0_PIN 33
-#define LDR1_PIN 32
-#define LDR2_PIN 35
-#define LDR3_PIN 34
-
-
-#define LED0_PIN 19
-#define LED1_PIN 21
-#define LED2_PIN 22
-#define LED3_PIN 23
-
-#define STARTUP_REF 300
 const double LDR_POLY_COEFF[][8] =
 {
   {3.68084919177402, -34.5120701709678, 131.080431022415,  -249.864706948331, 255.443445134104, -124.166605221456, 43.7549060222041, -1.19323952996493},
@@ -30,98 +16,78 @@ const double LDR_POLY_COEFF[][8] =
   {4.82454368495804, -46.0248426386745, 176.9707408102,    -340.759585065101, 349.717590955888, -169.928843142655, 56.8947926737471, -1.68124423595064},
   {6.0378747625652,  -66.5375903505571, 293.002869190919,  -647.669495955518, 750.201322448095, -424.435876089206, 103.42736436519,  -5.43184919105217}
 };
-const uint8_t LDR_INPUT[] = {LDR0_PIN, LDR1_PIN, LDR2_PIN, LDR3_PIN};
-const uint8_t LED_CONTROL[] = {LED0_PIN, LED1_PIN, LED2_PIN, LED3_PIN};
 
 char auth[] = BLYNK_AUTH_TOKEN;
 char ssid[] = "LARM_ALUNOS";
 char pass[] = "LarmUfscq2022";
 
+const double Kp = 1, Ki = 5, Kd = 0, N = 1, Ts = 0.001;
 double LUX_REFERENCE = STARTUP_REF;
-double a, b, c, d, e, f, g, h;
-const double Kp = 1, Ki = 5, Kd = 0;
 unsigned long time_past = 0;
 
-PID* PID_SYS[4];
-LED* LED_AREA[4];
-LDR* LDR_AREA[4];
+AreaInfo_t Info_0, Info_2;
+Area *Area_0, *Area_2;
 
-SemaphoreHandle_t mutexLDR;
-SemaphoreHandle_t mutexLED;
+SemaphoreHandle_t mutexArea;
+
+hw_timer_t *ctrlTimer;
+
 void setup()
 {
-  Serial.begin(115200);
-  Serial.print("Iniciando Blynk...");
-  Blynk.begin(auth, ssid, pass);
   disableCore0WDT();
-  disableCore1WDT();
-  for (uint8_t i = 0; i < 4; i++)
-  {
-    LED_AREA[i] = new LED(LED_CONTROL[i], i);
-    LDR_AREA[i] = new LDR(LDR_INPUT[i], LDR_POLY_COEFF[i]);
-    PID_SYS[i] = new PID(Kp, Ki, Kd, 2, 0.001); 
-  }
-  mutexLDR = xSemaphoreCreateMutex();
-  mutexLED = xSemaphoreCreateMutex();
-  xTaskCreatePinnedToCore(Control_Logic, "Control_Logic", 4096, NULL, 1, NULL, 0);
-  vTaskStartScheduler();
+  Serial.begin(115200);
+  Blynk.begin(auth, ssid, pass);
   Blynk.virtualWrite(V0, STARTUP_REF);
   Blynk.run();
+  
+  Area_0 = new Area(LDR0_PIN, LED0_PIN, 0, LDR_POLY_COEFF[0], Kp, Ki, Kd, N, Ts);
+  Area_2 = new Area(LDR2_PIN, LED2_PIN, 2, LDR_POLY_COEFF[2], Kp, Ki, Kd, N, Ts);
+  Info_0 = Area_0->getInformation();
+  Info_2 = Area_2->getInformation();
+
+  mutexArea = xSemaphoreCreateMutex();
+
+  xTaskCreatePinnedToCore(ISRSetup, "ISRSetup", 4096, NULL, 1, NULL, 0);  
+  
 }
+
 void loop()
 {
-  if(xSemaphoreTake(mutexLED, (TickType_t)0))
+  if(xSemaphoreTake(mutexArea, 0))
   {
-    a = LED_AREA[0]->getDutyCycle();
-    b = LED_AREA[1]->getDutyCycle();
-    c = LED_AREA[2]->getDutyCycle();
-    d = LED_AREA[3]->getDutyCycle();
-    xSemaphoreGive(mutexLED);
+    Info_0 = Area_0->getInformation();
+    Info_2 = Area_2->getInformation();
+    xSemaphoreGive(mutexArea);
   }
-  if(xSemaphoreTake(mutexLDR, (TickType_t)0))
-  {
-    e = LDR_AREA[0]->getLuminance();
-    f = LDR_AREA[1]->getLuminance();
-    g = LDR_AREA[2]->getLuminance();
-    h = LDR_AREA[3]->getLuminance();
-    xSemaphoreGive(mutexLDR);
-  }
-  Blynk.virtualWrite(V1, a);
-  Blynk.virtualWrite(V2, b);
-  Blynk.virtualWrite(V3, c);
-  Blynk.virtualWrite(V4, d);
+  Blynk.virtualWrite(V1, Info_0.dutyCycle);
+  Blynk.virtualWrite(V2, 0);
+  Blynk.virtualWrite(V3, Info_2.dutyCycle);
+  Blynk.virtualWrite(V4, 0);
   Blynk.run();
-  Serial.printf("%f\t%f\t%f\t%f\n", e, f, g, h);
+  Serial.printf("Area 0: %.2f lx - %.2f%% == Area 2: %.2f lx - %.2f%%\n", Info_0.Lx, Info_0.dutyCycle, Info_2.Lx, Info_2.dutyCycle);
 }
+
 BLYNK_WRITE(V0)
 {
   LUX_REFERENCE = param.asFloat();
+  Serial.printf("Luminance reference changed. New reference: %f\n", LUX_REFERENCE);
 }
-void Control_Logic(void* ptr)
+
+void IRAM_ATTR controlLogic()
 {
-  while(1)
+  if(xSemaphoreTake(mutexArea, 0))
   {
-    unsigned long now = millis();
-    if (now > time_past + 1)
-    {
-      for (uint8_t i = 0; i < 4; i++)
-      {
-        uint16_t PWM_OUT;
-        double Lx;
-        if(xSemaphoreTake(mutexLDR, portMAX_DELAY))
-        {
-          Lx = LDR_AREA[i]->getLuminance();
-          LDR_AREA[i]->update();
-          xSemaphoreGive(mutexLDR);
-        }
-        PWM_OUT = PID_SYS[i]->Compute(LUX_REFERENCE, Lx);
-        if(xSemaphoreTake(mutexLED, portMAX_DELAY))
-        {
-          LED_AREA[i]->analogWrite(PWM_OUT);
-          xSemaphoreGive(mutexLED);
-        }
-      }
-      time_past = now;
-    }
+    Area_0->update(LUX_REFERENCE);
+    Area_2->update(LUX_REFERENCE);
+    xSemaphoreGive(mutexArea);
   }
+}
+
+void ISRSetup(void* ptr)
+{
+  ctrlTimer = timerBegin(0, 80, true);
+  timerAttachInterrupt(ctrlTimer, &controlLogic, true);
+  timerAlarmWrite(ctrlTimer, 1000, true);
+  timerAlarmEnable(ctrlTimer);
+  vTaskDelete(0);
 }

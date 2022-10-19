@@ -1,4 +1,5 @@
 #include "PID.hpp"
+
 PID::PID(double Kp, double Ki, double Kd, double N, double Ts)
 {
   a0 = (1+N*Ts);
@@ -13,6 +14,7 @@ PID::PID(double Kp, double Ki, double Kd, double N, double Ts)
   ke1 = b1/a0;
   ke2 = b2/a0;
 }
+
 double PID::Compute(double reference, double sensor)
 {
   e2 = e1;

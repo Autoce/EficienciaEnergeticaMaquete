@@ -7,7 +7,7 @@ class LED
 
       LED(uint8_t outputPin, uint8_t channel);
       void analogWrite(uint16_t duty_cycle);
-      uint16_t getDutyCycle();
+      double getDutyCycle() const;
 
     private:
 
