@@ -5,6 +5,7 @@
 LDR::LDR(uint8_t inputPin, const double* polynomial) : inputPin(inputPin), polynomial(polynomial)
 {
   double sum = 0;
+  pinMode(inputPin, OUTPUT);
   for(uint8_t l = 0; l < AMOSTRAS_MED; l++)
   {
     double luminance = getLuminanceFromHardware();

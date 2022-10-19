@@ -1,5 +1,6 @@
 #ifndef LDR_PROJ_INCLUDED
 #define LDR_PROJ_INCLUDED
+#include <cstdint>
 #include <queue>
 class LDR
 {
