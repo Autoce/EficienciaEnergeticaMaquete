@@ -6,8 +6,8 @@
 
 typedef struct
 {
-  double Lx;
-  double dutyCycle;
+  double Lx = 0;
+  double dutyCycle = 0;
 } AreaInfo_t;
 
 class Area

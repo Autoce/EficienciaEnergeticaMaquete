@@ -9,4 +9,4 @@
 #define LED3_PIN 23
 
 #define STARTUP_REF 300
-#define AMOSTRAS_MED 10
+#define AMOSTRAS_MED 100
