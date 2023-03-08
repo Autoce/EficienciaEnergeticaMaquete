@@ -1,18 +1,17 @@
 #include "LDR.hpp"
-#include "config.h"
 #include <Arduino.h>
 
-LDR::LDR(uint8_t inputPin, const double* polynomial) : inputPin(inputPin), polynomial(polynomial)
+LDR::LDR(uint8_t inputPin, uint8_t samples, const double* polynomial) : inputPin(inputPin), samples(samples), polynomial(polynomial)
 {
   double sum = 0;
   pinMode(inputPin, OUTPUT);
-  for(uint8_t l = 0; l < AMOSTRAS_MED; l++)
+  for(uint8_t l = 0; l < samples; l++)
   {
     double luminance = getLuminanceFromHardware();
     sum += luminance;
     luxReadings.push_back(luminance);
   }
-  currentLuxAvg = sum/AMOSTRAS_MED;
+  currentLuxAvg = sum/samples;
 }
 
 void LDR::update()
@@ -21,9 +20,9 @@ void LDR::update()
   luminance = getLuminanceFromHardware();
   luxReadings.pop_front();
   luxReadings.push_back(luminance);
-  for(uint8_t l = 0; l < AMOSTRAS_MED; l++)
+  for(uint8_t l = 0; l < samples; l++)
     sum += luxReadings[l];
-  currentLuxAvg = sum/AMOSTRAS_MED;
+  currentLuxAvg = sum/samples;
 }
 
 double LDR::getLuminance() const

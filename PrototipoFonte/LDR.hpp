@@ -7,7 +7,7 @@ class LDR
 {
   public:
 
-    LDR(uint8_t inputPin, const double* polynomial);
+    LDR(uint8_t inputPin, uint8_t samples, const double* polynomial);
     void update();
     double getLuminance() const;
 
@@ -16,7 +16,7 @@ class LDR
     const double* polynomial;
     double currentLuxAvg;
     std::deque<double> luxReadings;
-    uint8_t inputPin;
+    uint8_t inputPin, samples;
     double getLuminanceFromHardware() const;
 };
 

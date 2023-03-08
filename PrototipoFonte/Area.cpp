@@ -1,9 +1,9 @@
 #include "Area.hpp"
 
-Area::Area(uint8_t inputPin, uint8_t outputPin, uint8_t channel, const double* polynomial, double Kp, double Ki, double Kd, double N, double Ts)
+Area::Area(uint8_t inputPin, uint8_t outputPin, uint8_t channel, uint8_t samples, const double* polynomial, double Kp, double Ki, double Kd, double N, double Ts)
 {
   areaLED = new LED(outputPin, channel);
-  areaLDR = new LDR(inputPin, polynomial);
+  areaLDR = new LDR(inputPin, samples, polynomial);
   areaPID = new PID(Kp, Ki, Kd, N, Ts);
 }
 
