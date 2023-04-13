@@ -1,7 +1,8 @@
 #include "Area.hpp"
 
-Area::Area(uint8_t inputPin, uint8_t outputPin, uint8_t channel, uint8_t samples, const double* polynomial, double Kp, double Ki, double Kd, double N, double Ts)
+Area::Area(uint8_t inputPin, uint8_t outputPin, uint8_t channel, uint8_t samples, const double* polynomial, double Kp, double Ki, double Kd, double N, double Ts, bool mode)
 {
+  operationMode = mode;
   areaLED = new LED(outputPin, channel);
   areaLDR = new LDR(inputPin, samples, polynomial);
   areaPID = new PID(Kp, Ki, Kd, N, Ts);
@@ -16,10 +17,15 @@ Area::~Area()
 
 void Area::update(double reference) const
 {
-  areaLDR->update();
-  const double Lx = areaLDR->getLuminance();
-  const uint16_t PWM_OUT = areaPID->Compute(reference, Lx);
-  areaLED->analogWrite(PWM_OUT);
+  areaLDR->update();  
+  if(operationMode){
+    areaLED->analogWrite(reference*10.23);
+  }
+  else{
+    const double Lx = areaLDR->getLuminance();
+    const uint16_t PWM_OUT = areaPID->Compute(reference, Lx);
+    areaLED->analogWrite(PWM_OUT);
+  }
 }
 
 AreaInfo_t Area::getInformation() const
