@@ -1,8 +1,9 @@
-#include "Area.hpp"
-#include "config.h"
 #include <WiFi.h>
 #include <WiFiClient.h>
 #include <BlynkSimpleEsp32.h>
+#include <PubSubClient.h>
+#include "Area.hpp"
+#include "config.h"
 #include "SPIFFS.h"
 
 void areaInit();
@@ -40,6 +41,10 @@ SemaphoreHandle_t mutexArea;
 hw_timer_t *readTimer = NULL;
 bool readSensor = false;
 
+//MQTT
+WiFiClient wifiClient;
+PubSubClient mqttClient(wifiClient);
+
 void setup()
 {
   Serial.begin(115200);
@@ -51,6 +56,10 @@ void setup()
   freeRTOSInit();
 
   timerConfig();
+
+  // Configura o servidor MQTT e o cliente MQTT
+  mqttClient.setServer(MQTT_BROKER_IP_ADDRESS, 1883);
+  mqttClient.setCallback(mqttCallback);
 }
 
 void loop()
@@ -80,24 +89,52 @@ void BlynkStartupTask(void* ptr)
   {
     if(xSemaphoreTake(mutexArea, 0))
     {
+      // Verifica se a conexão com o broker MQTT está ativa e reconecta-se, se necessário
+      if (!mqttClient.connected()) {
+        reconnect();
+      }
+
+      // Processa as mensagens MQTT recebidas
+      mqttClient.loop();
+
+
       Info_0 = Area_0->getInformation();
       Info_1 = Area_1->getInformation();
       Info_2 = Area_2->getInformation();
       Info_3 = Area_3->getInformation();
       avgLx = (Info_1.Lx + Info_3.Lx)*0.5;
       
-      xSemaphoreGive(mutexArea);
-      
       Blynk.virtualWrite(V1, Info_0.dutyCycle);
       Blynk.virtualWrite(V2, Info_1.dutyCycle);
       Blynk.virtualWrite(V3, Info_2.dutyCycle);
       Blynk.virtualWrite(V4, Info_3.dutyCycle);
-    
       Blynk.virtualWrite(V6, Info_0.Lx);
       Blynk.virtualWrite(V7, Info_2.Lx);
       Blynk.virtualWrite(V8, avgLx);
 
-      Blynk.run();
+      Blynk.run();  
+
+      
+      // Publica uma mensagem MQTT
+      char strValue[20];
+      sprintf(strValue, "%.2f", Info_0.dutyCycle);
+      mqttClient.publish("esp32/v1", strValue);
+      sprintf(strValue, "%.2f", Info_1.dutyCycle);
+      mqttClient.publish("esp32/v2", strValue);
+      sprintf(strValue, "%.2f", Info_2.dutyCycle);
+      mqttClient.publish("esp32/v3", strValue);
+      sprintf(strValue, "%.2f", Info_3.dutyCycle);
+      mqttClient.publish("esp32/v4", strValue);
+      sprintf(strValue, "%.2f", Info_0.Lx);
+      mqttClient.publish("esp32/v6", strValue);
+      sprintf(strValue, "%.2f", Info_1.Lx);
+      mqttClient.publish("esp32/v7", strValue);
+      sprintf(strValue, "%.2f", Info_2.Lx);
+      mqttClient.publish("esp32/v8", strValue);
+      sprintf(strValue, "%.2f", Info_3.Lx);
+      mqttClient.publish("esp32/v9", strValue);
+
+      xSemaphoreGive(mutexArea);
     }
   }
 }
@@ -190,4 +227,39 @@ void IRAM_ATTR doRead(){
   readSensor = true;
 }
 
-//Serial.printf("Area 0: %.2f lx - %.2f%% == Area 2: %.2f lx - %.2f%%\n", Info_0.Lx, Info_0.dutyCycle, Info_2.Lx, Info_2.dutyCycle);
+//MQTT
+// Função de reconexão ao broker MQTT
+void reconnect() {
+  while (!mqttClient.connected()) {
+    Serial.println("Tentando reconectar ao broker MQTT...");
+    if (mqttClient.connect("ESP32Client", MQTTUSERNAME, MQTTPWD)) {
+      Serial.println("Reconectado ao broker MQTT!");
+      mqttClient.subscribe("ha/mode");
+      mqttClient.subscribe("ha/values");
+    } else {
+      Serial.print("Falha ao se reconectar ao broker MQTT com erro: ");
+      Serial.println(mqttClient.state());
+    }
+  }
+}
+
+// Função de callback para processar as mensagens MQTT recebidas
+void mqttCallback(char* topic, byte* payload, unsigned int length) {
+  payload[length] = '\0';
+  String message = (char*)payload;
+
+  if(topic == "ha/mode"){
+    
+  }
+  else if(topic == "ha/values"){
+    
+  }
+
+  Serial.print("Mensagem MQTT recebida no tópico [");
+  Serial.print(topic);
+  Serial.print("]: ");
+  for (int i = 0; i < length; i++) {
+    Serial.print((char)payload[i]);
+  }
+  Serial.println();
+}

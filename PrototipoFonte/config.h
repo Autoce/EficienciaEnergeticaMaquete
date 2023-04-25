@@ -27,3 +27,8 @@
 char auth[] = BLYNK_AUTH_TOKEN;
 char ssid[] = "LARM_ALUNOS";
 char pass[] = "LarmUfscq2022";
+
+//Defina MQTT credentials
+#define MQTT_BROKER_IP_ADDRESS "150.162.234.58"
+#define MQTTUSERNAME "homeassistant"
+#define MQTTPWD "ieZo8aepiu3eev6cheifeechee7weichoez9mai1Kee6ech2PaeYahcheth8sar7"
