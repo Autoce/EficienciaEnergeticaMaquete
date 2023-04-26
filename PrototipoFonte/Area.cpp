@@ -38,45 +38,49 @@ Area::Area(uint8_t inputPin0, uint8_t inputPin1, uint8_t inputPin2, uint8_t inpu
 
 Area::~Area()
 {
-  delete areaLED0;
-  areaLED0 = nullptr;
-
-  delete areaLDR0;
-  areaLDR0 = nullptr;
-
-
-//   if (areaLED1 != nullptr) {
-//     delete areaLED1;
-//     areaLED1 = nullptr;
-//   }
-// Serial.println("53");
-//   if (areaLED2 != nullptr) {
-//     delete areaLED2;
-//     areaLED2 = nullptr;
-//   }
-// Serial.println("58");
-//   if (areaLED3 != nullptr) {
-//     delete areaLED3;
-//     areaLED3 = nullptr;
-//   }
-// Serial.println("63");
-//   if (areaLDR1 != nullptr) {
-//     delete areaLDR1;
-//     areaLDR1 = nullptr;
-//   }
-
-//   if (areaLDR2 != nullptr) {
-//     delete areaLDR2;
-//     areaLDR2 = nullptr;
-//   }
-
-//   if (areaLDR3 != nullptr) {
-//     delete areaLDR3;
-//     areaLDR3 = nullptr;
-//   }
-
-  delete areaPID;
-  areaPID = nullptr;
+  switch (mode)
+  {
+  case 0:
+    delete areaLED0;
+    areaLED0 = nullptr;
+    delete areaLDR0;
+    areaLDR0 = nullptr;
+    delete areaPID;
+    areaPID = nullptr;
+    break;
+  case 1:
+    delete areaLED0;
+    areaLED0 = nullptr;
+    delete areaLDR0;
+    areaLDR0 = nullptr;
+    delete areaLED1;
+    areaLED1 = nullptr;
+    delete areaLDR1;
+    areaLDR1 = nullptr;
+    delete areaPID;
+    areaPID = nullptr;
+  case 2:
+    delete areaLED0;
+    areaLED0 = nullptr;
+    delete areaLDR0;
+    areaLDR0 = nullptr;
+    delete areaLED1;
+    areaLED1 = nullptr;
+    delete areaLDR1;
+    areaLDR1 = nullptr;
+    delete areaLED2;
+    areaLED2 = nullptr;
+    delete areaLDR2;
+    areaLDR2 = nullptr;
+    delete areaLED3;
+    areaLED3 = nullptr;
+    delete areaLDR3;
+    areaLDR3 = nullptr;
+    delete areaPID;
+    areaPID = nullptr;
+  default:
+    break;
+  }
 }
 
 void Area::update(double reference) const
@@ -156,26 +160,6 @@ AreaInfoBundle_t Area::getInformation() const
 {
   AreaInfo_t tmp;
   AreaInfoBundle_t tmpB;
-
-  // tmp.Lx = areaLDR0->getLuminance();
-  // tmp.dutyCycle = areaLED0->getDutyCycle();
-  // tmpB.a0 = tmp;
-
-  // if(mode > 0){
-  //   tmp.Lx = areaLDR1->getLuminance();
-  //   tmp.dutyCycle = areaLED1->getDutyCycle();
-  //   tmpB.a1 = tmp;
-  // }
-
-  // if(mode > 1){
-  //   tmp.Lx = areaLDR2->getLuminance();
-  //   tmp.dutyCycle = areaLED2->getDutyCycle();
-  //   tmpB.a2 = tmp;
-
-  //   tmp.Lx = areaLDR3->getLuminance();
-  //   tmp.dutyCycle = areaLED3->getDutyCycle();
-  //   tmpB.a3 = tmp;
-  // }
   
   switch (mode)
   {

@@ -209,15 +209,10 @@ void LEDUpdate(){
         break;
 
       case 1:
-        Serial.println(207);
         Area_0->update(LUX_REFERENCE);
-        Serial.println(209);
         Area_1->update(LUX_REFERENCE);
-        Serial.println(211);
         Area_2->update(LUX_REFERENCE);
-        Serial.println(213);
         Area_3->update(LUX_REFERENCE);
-        Serial.println(215);
         break;
 
       case 2:
@@ -288,21 +283,22 @@ void IRAM_ATTR doRead(){
 void changeMode(int mode){
   if(xSemaphoreTake(modeChangeSafety, portMAX_DELAY)){
     Serial.printf("Mudando para o modo %i\n", mode);
-    Serial.println("Aqui");
-    delete Area_0;
-    Serial.println("Parou");
-    // if (Area_1 != nullptr) {
-    //   delete Area_1;
-    //   Area_1 = nullptr;
-    // }
-    // if (Area_2 != nullptr) {
-    //   delete Area_2;
-    //   Area_2 = nullptr;
-    // }
-    // if (Area_3 != nullptr) {
-    //   delete Area_3;
-    //   Area_3 = nullptr;
-    // }
+    switch(lightMode){
+      case 0:
+        delete Area_0, Area_1, Area_2;
+        break;
+      case 1:
+        delete Area_0, Area_1, Area_2, Area_3;
+        break;
+      case 2:
+        delete Area_0, Area_1;
+        break;
+      case 3:
+        delete Area_0;
+        break;
+      default:
+        break;
+    }    
     switch (mode)
     {
     case 0:
