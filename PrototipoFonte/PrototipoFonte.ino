@@ -1,9 +1,3 @@
-//corrigir os deletes da Area.cpp
-// Tentar novamnete o if
-// talvez iniciar as variaveis já como null
-// um problema menor no area.cpp, mas tem que fazer de forma altomatica para o main
-
-
 #include <WiFi.h>
 #include <WiFiClient.h>
 #include <BlynkSimpleEsp32.h>
@@ -41,7 +35,7 @@ int timerTime = UPDATE_TIME*1000;
 Area *Area_0, *Area_1, *Area_2, *Area_3;
 // LDR *LDR_1, *LDR_3;
 // LED *LED_1, *LED_3;
-SemaphoreHandle_t mutexArea, modeChangeSafety;
+SemaphoreHandle_t mutexArea;
 
 hw_timer_t *readTimer = NULL;
 bool readSensor = false;
@@ -64,10 +58,6 @@ void setup()
   freeRTOSInit();
 
   timerConfig();
-
-  // Configura o servidor MQTT e o cliente MQTT
-  mqttClient.setServer(MQTT_BROKER_IP_ADDRESS, 1883);
-  mqttClient.setCallback(mqttCallback);
 }
 
 void loop()
@@ -93,6 +83,17 @@ void BlynkStartupTask(void* ptr)
   Blynk.virtualWrite(V0, LUX_REFERENCE);
   Blynk.virtualWrite(V5, 0);
   Blynk.run();
+
+  // Configura o servidor MQTT e o cliente MQTT
+  mqttClient.setServer(MQTT_BROKER_IP_ADDRESS, 1883);
+  mqttClient.setCallback(mqttCallback);
+  reconnect();
+
+  char strValue[20];
+  sprintf(strValue, "%u", lightMode);
+
+  mqttClient.publish("esp32/mode", strValue);
+
   while(1)
   {
     if(xSemaphoreTake(mutexArea, 0))
@@ -123,8 +124,18 @@ void BlynkStartupTask(void* ptr)
           Info_3 = tmp.a1;
           
           break;
-
+        
         case 1:
+          tmp = Area_0->getInformation();
+          Info_0 = tmp.a0;
+          Info_2 = tmp.a1;
+
+          tmp = Area_1->getInformation();
+          Info_1 = tmp.a0;
+          Info_3 = tmp.a1;
+          break;
+
+        case 2:
           tmp = Area_0->getInformation();
           Info_0 = tmp.a0;
 
@@ -139,7 +150,7 @@ void BlynkStartupTask(void* ptr)
 
           break;
 
-        case 2:
+        case 3:
           tmp = Area_0->getInformation();
           Info_0 = tmp.a0;
           Info_1 = tmp.a1;
@@ -150,15 +161,22 @@ void BlynkStartupTask(void* ptr)
 
           break;
 
-        case 3:
+        case 4:
           tmp = Area_0->getInformation();
           Info_0 = tmp.a0;
           Info_1 = tmp.a1;
           Info_2 = tmp.a2;
           Info_3 = tmp.a3;
-
           break;
         
+        case 5:
+          tmp = Area_0->getInformation();
+          Info_0 = tmp.a0;
+          Info_1 = tmp.a1;
+          Info_2 = tmp.a2;
+          Info_3 = tmp.a3;
+          break;
+
         default:
           break;
       }
@@ -199,7 +217,7 @@ void BlynkStartupTask(void* ptr)
 }
 
 void LEDUpdate(){
-  if(readSensor && xSemaphoreTake(modeChangeSafety, 0)){
+  if(readSensor){
     switch (lightMode)
     {
       case 0:
@@ -210,26 +228,34 @@ void LEDUpdate(){
 
       case 1:
         Area_0->update(LUX_REFERENCE);
-        Area_1->update(LUX_REFERENCE);
-        Area_2->update(LUX_REFERENCE);
-        Area_3->update(LUX_REFERENCE);
+        Area_1->update(PWR_LED);
         break;
 
       case 2:
         Area_0->update(LUX_REFERENCE);
         Area_1->update(LUX_REFERENCE);
+        Area_2->update(LUX_REFERENCE);
+        Area_3->update(LUX_REFERENCE);
         break;
 
       case 3:
         Area_0->update(LUX_REFERENCE);
+        Area_1->update(LUX_REFERENCE);
+        break;
+
+      case 4:
+        Area_0->update(LUX_REFERENCE);
+        break;
+
+      case 5:
+        Area_0->update(PWR_LED);
         break;
       
       default:
         break;
     }
-    readSensor = false;
-    xSemaphoreGive(modeChangeSafety);
   }
+  readSensor = false;
 }
 
 void areaInit(bool mode0, bool mode1, bool mode2, bool mode3){
@@ -244,7 +270,6 @@ void areaInit(bool mode0, bool mode1, bool mode2, bool mode3){
 void freeRTOSInit(){
   Serial.print("[I] Starting up FreeRTOS");
   mutexArea = xSemaphoreCreateMutex();
-  modeChangeSafety = xSemaphoreCreateMutex();
   
   // xTaskCreatePinnedToCore(PIDUpdateTask, "PIDUpdt", 1024, NULL, 1, NULL, 0);
   xTaskCreatePinnedToCore(BlynkStartupTask, "BlynkSTT", 4096, NULL, 1, NULL, 1); 
@@ -281,56 +306,86 @@ void IRAM_ATTR doRead(){
 
 //Muda o modo de operação
 void changeMode(int mode){
-  if(xSemaphoreTake(modeChangeSafety, portMAX_DELAY)){
-    Serial.printf("Mudando para o modo %i\n", mode);
-    switch(lightMode){
-      case 0:
-        delete Area_0, Area_1, Area_2;
-        break;
-      case 1:
-        delete Area_0, Area_1, Area_2, Area_3;
-        break;
-      case 2:
-        delete Area_0, Area_1;
-        break;
-      case 3:
-        delete Area_0;
-        break;
-      default:
-        break;
-    }    
-    switch (mode)
-    {
+  while (readSensor == true)
+  {
+    delay(1);
+  }
+
+  timerAlarmDisable(readTimer);
+  
+  Serial.printf("Mudando para o modo %i\n", mode);
+  switch(lightMode){
     case 0:
-      lightMode = 0;
-      Area_0 = new Area(LDR0_PIN, LED0_PIN, 0, AMOSTRAS_MED, LDR_POLY_COEFF[0], Kp, Ki, Kd, N, Ts, false);
-      Area_2 = new Area(LDR2_PIN, LED2_PIN, 2, AMOSTRAS_MED, LDR_POLY_COEFF[2], Kp, Ki, Kd, N, Ts, false);
-      Area_1 = new Area(LDR1_PIN, LDR3_PIN, LED1_PIN, LED3_PIN, 1, 3, AMOSTRAS_MED, LDR_POLY_COEFF[1], LDR_POLY_COEFF[3], Kp, Ki, Kd, N, Ts, true);
+      delete Area_0, Area_1, Area_2;
       break;
-
     case 1:
-      lightMode = 1;
-      Area_0 = new Area(LDR0_PIN, LED0_PIN, 0, AMOSTRAS_MED, LDR_POLY_COEFF[0], Kp, Ki, Kd, N, Ts, false);
-      Area_1 = new Area(LDR1_PIN, LED1_PIN, 1, AMOSTRAS_MED, LDR_POLY_COEFF[1], Kp, Ki, Kd, N, Ts, false);
-      Area_2 = new Area(LDR2_PIN, LED2_PIN, 2, AMOSTRAS_MED, LDR_POLY_COEFF[2], Kp, Ki, Kd, N, Ts, false);
-      Area_3 = new Area(LDR3_PIN, LED3_PIN, 3, AMOSTRAS_MED, LDR_POLY_COEFF[3], Kp, Ki, Kd, N, Ts, false);
+      delete Area_0, Area_1;
       break;
-
     case 2:
-      lightMode = 2;
-      Area_0 = new Area(LDR0_PIN, LDR1_PIN, LED0_PIN, LED1_PIN, 0, 1, AMOSTRAS_MED, LDR_POLY_COEFF[0], LDR_POLY_COEFF[1], Kp, Ki, Kd, N, Ts, false);
-      Area_1 = new Area(LDR2_PIN, LDR3_PIN, LED2_PIN, LED3_PIN, 2, 3, AMOSTRAS_MED, LDR_POLY_COEFF[2], LDR_POLY_COEFF[3], Kp, Ki, Kd, N, Ts, false);
+      delete Area_0, Area_1, Area_2, Area_3;
       break;
-
     case 3:
-      lightMode = 3;
-      Area_0 = new Area(LDR0_PIN, LDR1_PIN, LDR2_PIN, LDR3_PIN, LED0_PIN, LED1_PIN, LED2_PIN, LED3_PIN, 0, 1, 2, 3, AMOSTRAS_MED, LDR_POLY_COEFF[0], LDR_POLY_COEFF[1], LDR_POLY_COEFF[2], LDR_POLY_COEFF[3], Kp, Ki, Kd, N, Ts, false);
-    
+      delete Area_0, Area_1;
+      break;
+    case 4:
+      delete Area_0;
+      break;
+    case 5:
+      delete Area_0;
+      break;
     default:
       break;
-    }
-    xSemaphoreGive(modeChangeSafety);
+  }    
+  switch (mode)
+  {
+  case 0:
+    lightMode = 0;
+    Area_0 = new Area(LDR0_PIN, LED0_PIN, 0, AMOSTRAS_MED, LDR_POLY_COEFF[0], Kp, Ki, Kd, N, Ts, false);
+    Area_1 = new Area(LDR1_PIN, LDR3_PIN, LED1_PIN, LED3_PIN, 1, 3, AMOSTRAS_MED, LDR_POLY_COEFF[1], LDR_POLY_COEFF[3], Kp, Ki, Kd, N, Ts, true);
+    Area_2 = new Area(LDR2_PIN, LED2_PIN, 2, AMOSTRAS_MED, LDR_POLY_COEFF[2], Kp, Ki, Kd, N, Ts, false);
+    mqttClient.publish("esp32/mode", "0");
+    break;
+
+  case 1:
+    lightMode = 1;
+    Area_0 = new Area(LDR0_PIN, LDR2_PIN, LED0_PIN, LED2_PIN, 0, 2, AMOSTRAS_MED, LDR_POLY_COEFF[0], LDR_POLY_COEFF[2], Kp, Ki, Kd, N, Ts, false);
+    Area_1 = new Area(LDR1_PIN, LDR3_PIN, LED1_PIN, LED3_PIN, 1, 3, AMOSTRAS_MED, LDR_POLY_COEFF[1], LDR_POLY_COEFF[3], Kp, Ki, Kd, N, Ts, true);
+    mqttClient.publish("esp32/mode", "1");
+    break;
+
+  case 2:
+    lightMode = 2;
+    Area_0 = new Area(LDR0_PIN, LED0_PIN, 0, AMOSTRAS_MED, LDR_POLY_COEFF[0], Kp, Ki, Kd, N, Ts, false);
+    Area_1 = new Area(LDR1_PIN, LED1_PIN, 1, AMOSTRAS_MED, LDR_POLY_COEFF[1], Kp, Ki, Kd, N, Ts, false);
+    Area_2 = new Area(LDR2_PIN, LED2_PIN, 2, AMOSTRAS_MED, LDR_POLY_COEFF[2], Kp, Ki, Kd, N, Ts, false);
+    Area_3 = new Area(LDR3_PIN, LED3_PIN, 3, AMOSTRAS_MED, LDR_POLY_COEFF[3], Kp, Ki, Kd, N, Ts, false);
+    mqttClient.publish("esp32/mode", "2");
+    break;
+
+  case 3:
+    lightMode = 3;
+    Area_0 = new Area(LDR0_PIN, LDR1_PIN, LED0_PIN, LED1_PIN, 0, 1, AMOSTRAS_MED, LDR_POLY_COEFF[0], LDR_POLY_COEFF[1], Kp, Ki, Kd, N, Ts, false);
+    Area_1 = new Area(LDR2_PIN, LDR3_PIN, LED2_PIN, LED3_PIN, 2, 3, AMOSTRAS_MED, LDR_POLY_COEFF[2], LDR_POLY_COEFF[3], Kp, Ki, Kd, N, Ts, false);
+    mqttClient.publish("esp32/mode", "3");
+    break;
+
+  case 4:
+    lightMode = 4;
+    Area_0 = new Area(LDR0_PIN, LDR1_PIN, LDR2_PIN, LDR3_PIN, LED0_PIN, LED1_PIN, LED2_PIN, LED3_PIN, 0, 1, 2, 3, AMOSTRAS_MED, LDR_POLY_COEFF[0], LDR_POLY_COEFF[1], LDR_POLY_COEFF[2], LDR_POLY_COEFF[3], Kp, Ki, Kd, N, Ts, false);
+    mqttClient.publish("esp32/mode", "4");
+    break;
+  case 5:
+    lightMode = 5;
+    Area_0 = new Area(LDR0_PIN, LDR1_PIN, LDR2_PIN, LDR3_PIN, LED0_PIN, LED1_PIN, LED2_PIN, LED3_PIN, 0, 1, 2, 3, AMOSTRAS_MED, LDR_POLY_COEFF[0], LDR_POLY_COEFF[1], LDR_POLY_COEFF[2], LDR_POLY_COEFF[3], Kp, Ki, Kd, N, Ts, true);
+    mqttClient.publish("esp32/mode", "5");
+    break;
+    
+  default:
+    break;
   }  
+
+  timerAlarmWrite(readTimer, timerTime, true);
+  timerAlarmEnable(readTimer);
 }
 
 //MQTT
@@ -355,6 +410,11 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   payload[length] = '\0';
   String message = (char*)payload;
 
+  Serial.print("Mensagem MQTT recebida no topico [");
+  Serial.print(topic);
+  Serial.print("]: ");
+  Serial.println(message);
+
   if(strcmp(topic, "ha/mode") == 0){
     changeMode(message.toInt());
   }
@@ -366,12 +426,4 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     PWR_LED = round(message.toInt());
     Serial.printf("[I] LED power configuration changed, using MQTT. New power: %i\n", PWR_LED);
   }
-
-  Serial.print("Mensagem MQTT recebida no topico [");
-  Serial.print(topic);
-  Serial.print("]: ");
-  for (int i = 0; i < length; i++) {
-    Serial.print((char)payload[i]);
-  }
-  Serial.println();
 }

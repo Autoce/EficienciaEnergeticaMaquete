@@ -4,7 +4,7 @@
 LDR::LDR(uint8_t inputPin, uint8_t samples, const double* polynomial) : inputPin(inputPin), samples(samples), polynomial(polynomial)
 {
   double sum = 0;
-  pinMode(inputPin, OUTPUT);
+  pinMode(inputPin, INPUT);
   for(uint8_t l = 0; l < samples; l++)
   {
     double luminance = getLuminanceFromHardware();

@@ -59,6 +59,7 @@ Area::~Area()
     areaLDR1 = nullptr;
     delete areaPID;
     areaPID = nullptr;
+    break;
   case 2:
     delete areaLED0;
     areaLED0 = nullptr;
@@ -78,6 +79,7 @@ Area::~Area()
     areaLDR3 = nullptr;
     delete areaPID;
     areaPID = nullptr;
+    break;
   default:
     break;
   }
