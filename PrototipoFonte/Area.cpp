@@ -1,38 +1,40 @@
 #include "Area.hpp"
 
-Area::Area(uint8_t inputPin, uint8_t outputPin, uint8_t channel, uint8_t samples, const double* polynomial, double Kp, double Ki, double Kd, double N, double Ts, bool OverWrite)
+Area::Area(uint8_t inputPin, uint8_t outputPin, uint8_t channel, uint8_t samples, const double* polynomial, const double* reference, double Kp, double Ki, double Kd, double N, double Ts, bool OverWrite)
 {
   pwrOverWrite = OverWrite;
   mode = 0;
   areaLED0 = new LED(outputPin, channel);
-  areaLDR0 = new LDR(inputPin, samples, polynomial);
+  areaLDR0 = new LDR(inputPin, samples, polynomial, reference);
   areaPID = new PID(Kp, Ki, Kd, N, Ts);
 }
 
-Area::Area(uint8_t inputPin0, uint8_t inputPin1, uint8_t outputPin0, uint8_t outputPin1, uint8_t channel0, uint8_t channel1, uint8_t samples, const double* polynomial0, const double* polynomial1, double Kp, double Ki, double Kd, double N, double Ts, bool OverWrite){
+Area::Area(uint8_t inputPin0, uint8_t inputPin1, uint8_t outputPin0, uint8_t outputPin1, uint8_t channel0, uint8_t channel1, uint8_t samples, const double* polynomial0, const double* polynomial1, const double* reference0, const double* reference1, double Kp, double Ki, double Kd, double N, double Ts, bool OverWrite)
+{
   pwrOverWrite = OverWrite;
   mode = 1;
   areaLED0 = new LED(outputPin0, channel0);
-  areaLDR0 = new LDR(inputPin0, samples, polynomial0);
+  areaLDR0 = new LDR(inputPin0, samples, polynomial0, reference0);
   areaLED1 = new LED(outputPin1, channel1);
-  areaLDR1 = new LDR(inputPin1, samples, polynomial1);
+  areaLDR1 = new LDR(inputPin1, samples, polynomial1, reference1);
   areaPID = new PID(Kp, Ki, Kd, N, Ts);
 }
 
-Area::Area(uint8_t inputPin0, uint8_t inputPin1, uint8_t inputPin2, uint8_t inputPin3, uint8_t outputPin0, uint8_t outputPin1, uint8_t outputPin2, uint8_t outputPin3, uint8_t channel0, uint8_t channel1, uint8_t channel2, uint8_t channel3, uint8_t samples, const double* polynomial0, const double* polynomial1, const double* polynomial2, const double* polynomial3, double Kp, double Ki, double Kd, double N, double Ts, bool OverWrite){
+Area::Area(uint8_t inputPin0, uint8_t inputPin1, uint8_t inputPin2, uint8_t inputPin3, uint8_t outputPin0, uint8_t outputPin1, uint8_t outputPin2, uint8_t outputPin3, uint8_t channel0, uint8_t channel1, uint8_t channel2, uint8_t channel3, uint8_t samples, const double* polynomial0, const double* polynomial1, const double* polynomial2, const double* polynomial3, const double* reference0, const double* reference1, const double* reference2, const double* reference3, double Kp, double Ki, double Kd, double N, double Ts, bool OverWrite)
+{
   pwrOverWrite = OverWrite;
   mode = 2;
   areaLED0 = new LED(outputPin0, channel0);
-  areaLDR0 = new LDR(inputPin0, samples, polynomial0);
+  areaLDR0 = new LDR(inputPin0, samples, polynomial0, reference0);
 
   areaLED1 = new LED(outputPin1, channel1);
-  areaLDR1 = new LDR(inputPin1, samples, polynomial1);
+  areaLDR1 = new LDR(inputPin1, samples, polynomial1, reference1);
 
   areaLED2 = new LED(outputPin2, channel2);
-  areaLDR2 = new LDR(inputPin2, samples, polynomial2);
+  areaLDR2 = new LDR(inputPin2, samples, polynomial2, reference2);
 
   areaLED3 = new LED(outputPin3, channel3);
-  areaLDR3 = new LDR(inputPin3, samples, polynomial3);
+  areaLDR3 = new LDR(inputPin3, samples, polynomial3, reference3);
   areaPID = new PID(Kp, Ki, Kd, N, Ts);
 }
 

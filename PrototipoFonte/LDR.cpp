@@ -1,7 +1,7 @@
 #include "LDR.hpp"
 #include <Arduino.h>
 
-LDR::LDR(uint8_t inputPin, uint8_t samples, const double* polynomial) : inputPin(inputPin), samples(samples), polynomial(polynomial)
+LDR::LDR(uint8_t inputPin, uint8_t samples, const double* polynomial, const double* reference) : inputPin(inputPin), samples(samples), polynomial(polynomial), reference(reference)
 {
   double sum = 0;
   pinMode(inputPin, INPUT);
@@ -32,15 +32,21 @@ double LDR::getLuminance() const
 
 double LDR::getLuminanceFromHardware() const
 {
-  const uint16_t ADC = analogRead(inputPin);
-  auto ADCtoLx = [](uint16_t ADC, const double* polynomial)
-  {
-    double Lx = 0;
-    double scaledADC = ADC / 1000.0;
-    for (uint8_t i = 0; i < 8; i++)
-      Lx += polynomial[i] * pow(scaledADC, 7 - i);
-    if (Lx < 0) return (double)0;
-    return Lx;
-  };
-  return ADCtoLx(ADC, polynomial);
+  int analogValue = analogRead(inputPin);
+  // Find the two nearest analogRead values in the array
+  // int index = 0;
+  // while (index < 101 - 1 && analogValue > polynomial[index + 1]) {
+  //   index++;
+  // }
+
+  // // Perform linear interpolation
+  // float analogMin = polynomial[index];
+  // float analogMax = polynomial[index + 1];
+  // float luxMin = reference[index];
+  // float luxMax = reference[index + 1];
+  // float lux = ((analogValue - analogMin) * (luxMax - luxMin) / (analogMax - analogMin)) + luxMin;
+
+  float lux = polynomial[0] * pow(analogValue, polynomial[1]);
+
+  return lux;
 }
