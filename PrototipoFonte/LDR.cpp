@@ -46,7 +46,7 @@ double LDR::getLuminanceFromHardware() const
   // float luxMax = reference[index + 1];
   // float lux = ((analogValue - analogMin) * (luxMax - luxMin) / (analogMax - analogMin)) + luxMin;
 
-  float lux = polynomial[0] * pow(analogValue, polynomial[1]);
+  float lux = polynomial[0] * exp(polynomial[1]*analogValue);
 
   return lux;
 }
